@@ -42,8 +42,8 @@ from cfclient.utils.config_manager import ConfigManager
 from cfclient.utils.input import JoystickReader
 from cfclient.utils.logconfigreader import LogConfigReader
 from cfclient.utils.ui import UiUtils
-from cfclient.utils.zmq_led_driver import ZMQLEDDriver
-from cfclient.utils.zmq_param import ZMQParamAccess
+#from cfclient.utils.zmq_led_driver import ZMQLEDDriver
+#from cfclient.utils.zmq_param import ZMQParamAccess
 from cflib.crazyflie import Crazyflie
 from cflib.crazyflie.log import LogConfig
 from cflib.crazyflie.mem import MemoryElement
@@ -126,11 +126,11 @@ class MainUI(QtWidgets.QMainWindow, main_window_class):
         cflib.crtp.init_drivers(enable_debug_driver=Config()
                                 .get("enable_debug_driver"))
 
-        zmq_params = ZMQParamAccess(self.cf)
-        zmq_params.start()
+        #zmq_params = ZMQParamAccess(self.cf)
+        #zmq_params.start()
 
-        zmq_leds = ZMQLEDDriver(self.cf)
-        zmq_leds.start()
+        #zmq_leds = ZMQLEDDriver(self.cf)
+        #zmq_leds.start()
 
         self.scanner = ScannerThread()
         self.scanner.interfaceFoundSignal.connect(self.foundInterfaces)
@@ -205,8 +205,14 @@ class MainUI(QtWidgets.QMainWindow, main_window_class):
             lambda *args: self._disable_input or
             self.cf.commander.send_zdistance_setpoint(*args))
 
+        # we intercept the callback to our own helper
         self.joystickReader.hover_input_updated.add_callback(
+            cfclient.ui.pluginhelper.send_hover_setpoint)
+
+        # Use our own callback to activate the actual hover setpoint
+        cfclient.ui.pluginhelper.hover_input_updated.add_callback(
             self.cf.commander.send_hover_setpoint)
+
 
         # Connection callbacks and signal wrappers for UI protection
         self.cf.connected.add_callback(self.connectionDoneSignal.emit)

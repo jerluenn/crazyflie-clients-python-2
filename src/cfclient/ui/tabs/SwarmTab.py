@@ -21,15 +21,11 @@
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU General Public License for more details.
 
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software
-#  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
-#  02110-1301, USA.
+#  You should have received a copy of the GNU General Public License along with
+#  this program; if not, write to the Free Software Foundation, Inc.,
+#  51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 """
-An example template for a tab in the Crazyflie Client. It comes pre-configured
-with the necessary QT Signals to wrap Crazyflie API callbacks and also
-connects the connected/disconnected callbacks.
 The flight control tab shows telemetry data and flight settings.
 """
 
@@ -48,17 +44,18 @@ from cfclient.utils.config import Config
 from cflib.crazyflie.log import LogConfig
 
 from cfclient.utils.input import JoystickReader
+
 from cfclient.ui.tab import Tab
 
 LOG_NAME_ESTIMATED_Z = "stateEstimate.z"
 
 __author__ = 'Bitcraze AB'
-__all__ = ['ExampleTab']
+__all__ = ['SwarmTab']
 
 logger = logging.getLogger(__name__)
 
 example_tab_class = uic.loadUiType(cfclient.module_path +
-                                   "/ui/tabs/exampleTab.ui")[0]
+                                  "/ui/tabs/swarmTab.ui")[0]
 
 MAX_THRUST = 65536.0
 
@@ -80,7 +77,6 @@ TOOLTIP_HOVER = """\
 When activated, keeps the Crazyflie at 40cm above the ground and tries to
 keep the position in X and Y as well. Thrust control becomes height velocity
 control. Requires a flow deck. Uses body-fixed coordinates."""
-
 
 class LogConfigModel(QAbstractItemModel):
     """Model for log configurations in the ComboBox"""
@@ -144,7 +140,8 @@ class LogConfigModel(QAbstractItemModel):
         return self._nodes[i]
 
 
-class ExampleTab(Tab, example_tab_class):
+class SwarmTab(Tab, example_tab_class):
+    uiSetupReadySignal = pyqtSignal()
 
     _motor_data_signal = pyqtSignal(int, object, object)
     _imu_data_signal = pyqtSignal(int, object, object)
@@ -158,6 +155,7 @@ class ExampleTab(Tab, example_tab_class):
     _hover_input_updated_signal = pyqtSignal(float, float, float, float)
 
     _log_error_signal = pyqtSignal(object, str)
+
     _plotter_log_error_signal = pyqtSignal(object, str)
     _log_data_signal = pyqtSignal(int, object, object)
     _disconnected_signal = pyqtSignal(str)
@@ -183,13 +181,13 @@ class ExampleTab(Tab, example_tab_class):
     _limiting_updated = pyqtSignal(bool, bool, bool)
 
     def __init__(self, tabWidget, helper, *args):
-        super(ExampleTab, self).__init__(*args)
+        super(SwarmTab, self).__init__(*args)
         self.setupUi(self)
 
-        self.tabName = "SUTD AFC3D"
-        self.menuName = "SUTD AFC3D"
-        self.tabWidget = tabWidget
+        self.tabName = "Swarm"
+        self.menuName = "Swarm"
 
+        self.tabWidget = tabWidget
         self.helper = helper
 
         self.disconnectedSignal.connect(self.disconnected)
@@ -238,7 +236,6 @@ class ExampleTab(Tab, example_tab_class):
         self._model = LogConfigModel()
         self.dataSelector.setModel(self._model)
         self.plotLayout.addWidget(self._plot)
-
         self._log_data_signal.connect(self._log_data_received)
         self._plotter_log_error_signal.connect(self._plotter_logging_error)
 
@@ -268,7 +265,9 @@ class ExampleTab(Tab, example_tab_class):
         self.k1Combo.valueChanged.connect(self._k123_gain_changed)
         self.k2Combo.valueChanged.connect(self._k123_gain_changed)
         self.k3Combo.valueChanged.connect(self._k123_gain_changed)
-
+        # self.maxAngle.valueChanged.connect(self.maxAngleChanged)
+        # self.maxYawRate.valueChanged.connect(self.maxYawRateChanged)
+        self.uiSetupReadySignal.connect(self.uiSetupReady)
         self.clientXModeCheckbox.toggled.connect(self.changeXmode)
         self.isInCrazyFlightmode = False
         self.uiSetupReady()
