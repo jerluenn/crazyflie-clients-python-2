@@ -21,15 +21,11 @@
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU General Public License for more details.
 
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software
-#  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
-#  02110-1301, USA.
+#  You should have received a copy of the GNU General Public License along with
+#  this program; if not, write to the Free Software Foundation, Inc.,
+#  51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 """
-An example template for a tab in the Crazyflie Client. It comes pre-configured
-with the necessary QT Signals to wrap Crazyflie API callbacks and also
-connects the connected/disconnected callbacks.
 The flight control tab shows telemetry data and flight settings.
 """
 
@@ -48,6 +44,7 @@ from cfclient.utils.config import Config
 from cflib.crazyflie.log import LogConfig
 
 from cfclient.utils.input import JoystickReader
+
 from cfclient.ui.tab import Tab
 
 LOG_NAME_ESTIMATED_Z = "stateEstimate.z"
@@ -58,7 +55,7 @@ __all__ = ['ExampleTab']
 logger = logging.getLogger(__name__)
 
 example_tab_class = uic.loadUiType(cfclient.module_path +
-                                   "/ui/tabs/exampleTab.ui")[0]
+                                  "/ui/tabs/exampleTab.ui")[0]
 
 MAX_THRUST = 65536.0
 
@@ -80,7 +77,6 @@ TOOLTIP_HOVER = """\
 When activated, keeps the Crazyflie at 40cm above the ground and tries to
 keep the position in X and Y as well. Thrust control becomes height velocity
 control. Requires a flow deck. Uses body-fixed coordinates."""
-
 
 class LogConfigModel(QAbstractItemModel):
     """Model for log configurations in the ComboBox"""
@@ -145,6 +141,7 @@ class LogConfigModel(QAbstractItemModel):
 
 
 class ExampleTab(Tab, example_tab_class):
+    uiSetupReadySignal = pyqtSignal()
 
     _motor_data_signal = pyqtSignal(int, object, object)
     _imu_data_signal = pyqtSignal(int, object, object)
@@ -158,6 +155,7 @@ class ExampleTab(Tab, example_tab_class):
     _hover_input_updated_signal = pyqtSignal(float, float, float, float)
 
     _log_error_signal = pyqtSignal(object, str)
+
     _plotter_log_error_signal = pyqtSignal(object, str)
     _log_data_signal = pyqtSignal(int, object, object)
     _disconnected_signal = pyqtSignal(str)
@@ -186,11 +184,12 @@ class ExampleTab(Tab, example_tab_class):
         super(ExampleTab, self).__init__(*args)
         self.setupUi(self)
 
-        self.tabName = "SUTD AFC3D"
-        self.menuName = "SUTD AFC3D"
-        self.tabWidget = tabWidget
+        self.tabName = "SUTD AFC3"
+        self.menuName = "SUTD AFC3"
 
+        self.tabWidget = tabWidget
         self.helper = helper
+        print("helper:", helper)
 
         self.disconnectedSignal.connect(self.disconnected)
         self.connectionFinishedSignal.connect(self.connected)
@@ -238,7 +237,6 @@ class ExampleTab(Tab, example_tab_class):
         self._model = LogConfigModel()
         self.dataSelector.setModel(self._model)
         self.plotLayout.addWidget(self._plot)
-
         self._log_data_signal.connect(self._log_data_received)
         self._plotter_log_error_signal.connect(self._plotter_logging_error)
 
@@ -268,7 +266,9 @@ class ExampleTab(Tab, example_tab_class):
         self.k1Combo.valueChanged.connect(self._k123_gain_changed)
         self.k2Combo.valueChanged.connect(self._k123_gain_changed)
         self.k3Combo.valueChanged.connect(self._k123_gain_changed)
-
+        # self.maxAngle.valueChanged.connect(self.maxAngleChanged)
+        # self.maxYawRate.valueChanged.connect(self.maxYawRateChanged)
+        self.uiSetupReadySignal.connect(self.uiSetupReady)
         self.clientXModeCheckbox.toggled.connect(self.changeXmode)
         self.isInCrazyFlightmode = False
         self.uiSetupReady()
@@ -278,6 +278,9 @@ class ExampleTab(Tab, example_tab_class):
         self.helper.cf.param.add_update_callback(
             group="imu_sensors",
             cb=self._set_available_sensors)
+
+        self.helper.cf.param.all_updated.add_callback(
+            self._all_params_updated)
 
         self.logBaro = None
         self.logAltHold = None
@@ -390,6 +393,7 @@ class ExampleTab(Tab, example_tab_class):
         self.helper.cf.param.set_value("velCtlPid.vzKp", str(15.0))
         self.k2Combo.setValue(15.0)
         self.k3Combo.setValue(0.0)
+        # self._populate_assisted_mode_dropdown()
 
         # IMU & THRUST
         lg = LogConfig("Stabilizer", Config().get("ui_update_period"))
@@ -410,6 +414,7 @@ class ExampleTab(Tab, example_tab_class):
 
         # MOTOR
         lg = LogConfig("Motors", Config().get("ui_update_period"))
+        lg.add_variable("stabilizer.thrust", "uint16_t")
         lg.add_variable("motor.m1")
         lg.add_variable("motor.m2")
         lg.add_variable("motor.m3")
@@ -425,7 +430,6 @@ class ExampleTab(Tab, example_tab_class):
         except AttributeError as e:
             logger.warning(str(e))
 
-        self._populate_assisted_mode_dropdown()
 
     def _set_available_sensors(self, name, available):
         logger.info("[%s]: %s", name, available)
@@ -469,6 +473,17 @@ class ExampleTab(Tab, example_tab_class):
         self.clientXModeCheckbox.setEnabled(False)
         self.logBaro = None
         self.logAltHold = None
+
+        # self._led_ring_effect.setEnabled(False)
+        # self._led_ring_effect.clear()
+        # try:
+        #     self._led_ring_effect.currentIndexChanged.disconnect(
+        #         self._ring_effect_changed)
+        # except TypeError:
+        #     # Signal was not connected
+        #     pass
+        # self._led_ring_effect.setCurrentIndex(-1)
+        # self._led_ring_headlight.setEnabled(False)
 
         try:
             self._assist_mode_combo.currentIndexChanged.disconnect(
@@ -650,6 +665,7 @@ class ExampleTab(Tab, example_tab_class):
     def _assisted_control_updated(self, enabled):
         if self.helper.inputDeviceReader.get_assisted_control() == \
                 JoystickReader.ASSISTED_CONTROL_POSHOLD:
+            #self.helper.cf.param.set_value("deck.bcZRanger", str(enabled))
             self.targetThrust.setEnabled(not enabled)
             self.targetRoll.setEnabled(not enabled)
             self.targetPitch.setEnabled(not enabled)
@@ -676,6 +692,11 @@ class ExampleTab(Tab, example_tab_class):
 
     def alt2_updated(self, state):
         self.helper.cf.param.set_value("ring.headlightEnable", str(state))
+
+
+    def _all_params_updated(self):
+        # self._ring_populate_dropdown()
+        self._populate_assisted_mode_dropdown()
 
     def _ring_populate_dropdown(self):
         try:
@@ -749,6 +770,17 @@ class ExampleTab(Tab, example_tab_class):
 
         heightHoldPossible = False
         hoverPossible = False
+
+        # if self.helper.cf.mem.ow_search(vid=0xBC, pid=0x09):
+        #     heightHoldPossible = True
+        #
+        # if self.helper.cf.mem.ow_search(vid=0xBC, pid=0x0A):
+        #     heightHoldPossible = True
+        #     hoverPossible = True
+
+        print(self.helper.cf.param.values)
+        # print(self.helper.cf.param.values["deck"]["bcFlow2"])
+        # print(self.helper.cf.param.values["deck"]["bcZRanger2"])
 
         if int(self.helper.cf.param.values["deck"]["bcZRanger"]) == 1:
             heightHoldPossible = True

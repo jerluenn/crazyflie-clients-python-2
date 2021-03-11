@@ -189,6 +189,7 @@ class SwarmTab(Tab, example_tab_class):
 
         self.tabWidget = tabWidget
         self.helper = helper
+        print("helper:", helper)
 
         self.disconnectedSignal.connect(self.disconnected)
         self.connectionFinishedSignal.connect(self.connected)
@@ -277,6 +278,9 @@ class SwarmTab(Tab, example_tab_class):
         self.helper.cf.param.add_update_callback(
             group="imu_sensors",
             cb=self._set_available_sensors)
+
+        self.helper.cf.param.all_updated.add_callback(
+            self._all_params_updated)
 
         self.logBaro = None
         self.logAltHold = None
@@ -389,6 +393,7 @@ class SwarmTab(Tab, example_tab_class):
         self.helper.cf.param.set_value("velCtlPid.vzKp", str(15.0))
         self.k2Combo.setValue(15.0)
         self.k3Combo.setValue(0.0)
+        # self._populate_assisted_mode_dropdown()
 
         # IMU & THRUST
         lg = LogConfig("Stabilizer", Config().get("ui_update_period"))
@@ -409,6 +414,7 @@ class SwarmTab(Tab, example_tab_class):
 
         # MOTOR
         lg = LogConfig("Motors", Config().get("ui_update_period"))
+        lg.add_variable("stabilizer.thrust", "uint16_t")
         lg.add_variable("motor.m1")
         lg.add_variable("motor.m2")
         lg.add_variable("motor.m3")
@@ -424,7 +430,6 @@ class SwarmTab(Tab, example_tab_class):
         except AttributeError as e:
             logger.warning(str(e))
 
-        self._populate_assisted_mode_dropdown()
 
     def _set_available_sensors(self, name, available):
         logger.info("[%s]: %s", name, available)
@@ -468,6 +473,17 @@ class SwarmTab(Tab, example_tab_class):
         self.clientXModeCheckbox.setEnabled(False)
         self.logBaro = None
         self.logAltHold = None
+
+        # self._led_ring_effect.setEnabled(False)
+        # self._led_ring_effect.clear()
+        # try:
+        #     self._led_ring_effect.currentIndexChanged.disconnect(
+        #         self._ring_effect_changed)
+        # except TypeError:
+        #     # Signal was not connected
+        #     pass
+        # self._led_ring_effect.setCurrentIndex(-1)
+        # self._led_ring_headlight.setEnabled(False)
 
         try:
             self._assist_mode_combo.currentIndexChanged.disconnect(
@@ -649,6 +665,7 @@ class SwarmTab(Tab, example_tab_class):
     def _assisted_control_updated(self, enabled):
         if self.helper.inputDeviceReader.get_assisted_control() == \
                 JoystickReader.ASSISTED_CONTROL_POSHOLD:
+            #self.helper.cf.param.set_value("deck.bcZRanger", str(enabled))
             self.targetThrust.setEnabled(not enabled)
             self.targetRoll.setEnabled(not enabled)
             self.targetPitch.setEnabled(not enabled)
@@ -675,6 +692,11 @@ class SwarmTab(Tab, example_tab_class):
 
     def alt2_updated(self, state):
         self.helper.cf.param.set_value("ring.headlightEnable", str(state))
+
+
+    def _all_params_updated(self):
+        # self._ring_populate_dropdown()
+        self._populate_assisted_mode_dropdown()
 
     def _ring_populate_dropdown(self):
         try:
@@ -748,6 +770,17 @@ class SwarmTab(Tab, example_tab_class):
 
         heightHoldPossible = False
         hoverPossible = False
+
+        # if self.helper.cf.mem.ow_search(vid=0xBC, pid=0x09):
+        #     heightHoldPossible = True
+        #
+        # if self.helper.cf.mem.ow_search(vid=0xBC, pid=0x0A):
+        #     heightHoldPossible = True
+        #     hoverPossible = True
+
+        print(self.helper.cf.param.values)
+        # print(self.helper.cf.param.values["deck"]["bcFlow2"])
+        # print(self.helper.cf.param.values["deck"]["bcZRanger2"])
 
         if int(self.helper.cf.param.values["deck"]["bcZRanger"]) == 1:
             heightHoldPossible = True

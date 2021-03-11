@@ -31,6 +31,7 @@ Used for passing objects to tabs and toolboxes.
 
 from cflib.utils.callbacks import Caller
 from math import sin, pi
+import time
 
 
 __author__ = 'Bitcraze AB'
@@ -54,6 +55,7 @@ class PluginHelper():
         self.plotTab = None
         self.pose_logger = None
         self.connectivity_manager = None
+        self.init_time = time.time()
 
     def send_hover_setpoint(self, vy, vx, yawrate, height):
         if self.useReferenceHeight:
@@ -63,10 +65,11 @@ class PluginHelper():
                 self.hover_input_updated.call(vy, vx, yawrate, self.sine_wave_generator())
             if (self.inputType == 2):  # Ramp
                 self.hover_input_updated.call(vy, vx, yawrate, self.referenceHeight)
+            print(self.sine_wave_generator())
         else:
             self.hover_input_updated.call(vy, vx, yawrate, height)
 
     def sine_wave_generator(self):
-        output = 0.2 * sin(2.00 * pi * self.sinewaveFrequency * self.inputTimer)
-        output = output + self.inputTimer + 0.001
+        output = 0.25 * sin(2.00 * pi * self.sinewaveFrequency * (time.time() - self.init_time)) + 0.5
+        # output = output + self.inputTimer + 0.001
         return output
